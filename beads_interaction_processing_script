@@ -1,0 +1,106 @@
+%%writefile //.../beadsconnection.sh
+#! /bin/bash
+#SBATCH --partition=...
+#SBATCH --nodes=1 
+#SBATCH --ntasks=10 #Annotate the number of cores
+#SBATCH --cpus-per-task=1
+#SBATCH --requeue
+#SBATCH --job-name="...." # annotate job name
+#SBATCH -o /.....out
+#SBATCH --error=/....error
+#SBATCH --mail-user=USER@rockefeller.edu
+#SBATCH --mail-type=ALL
+
+# define the fastq folder including all fastq files
+fastq_folder="/..../Raw_data/"
+
+# define the PCR group sample id for each fastq file
+sample_ID="/samplenames.txt"
+
+# define the output folder
+all_output_folder="/.../Intermediate_data_connections/"
+
+# define the core number for parallele processing
+core=10
+
+# Define the location of the sub script folder
+script_folder="/ru-auth/local/home/aabdul/restored_projects_CaoStore/restored/projects/Making_Dictionary_1/Bead_interaction_pipeline/"
+#define the bin of python (python V2.7)
+python_path="/ru-auth/local/home/jcao/anaconda3_new/bin/"
+
+# define the location of the spatial barcode dictionary_bead1
+
+spatial_barcode_folder="/ru-auth/local/home/aabdul/restored_projects_CaoStore/restored/projects/Making_Dictionary_1/AA_20230618_spatial_data_barcode_reference/"
+barcode_1_file=$spatial_barcode_folder/Spatial_R2_barcode_1.pickle
+barcode_2_file=$spatial_barcode_folder/Spatial_R2_barcode_2.pickle
+barcode_3_file=$spatial_barcode_folder/Spatial_R2_barcode_3.pickle
+barcode_4_file=$spatial_barcode_folder/Spatial_R2_barcode_4_bead1.pickle
+barcode_4_file2=$spatial_barcode_folder/Spatial_R2_barcode_4.pickle
+
+
+
+############ UMI attach
+# the script take an input folder, a sample ID list, an output folder, the RT barcode list, the ligation barcode list and core number. Then it extract the RT barcode from read1, the ligation barocde from read2, correct them to the nearest RT and ligation barcode (with edit distance <= 1), and attach the RT and ligation barcode and UMI sequence to the read name of read3. Reads with unmatched RT or ligation barcodes are discarded.
+
+
+fastq_folder="/ru-auth/local/home/aabdul/restored_projects_CaoStore/restored/projects/AA_20231221_BeadArraySeq_42/Raw_data/"
+input_folder="$fastq_folder"
+output_folder="$all_output_folder/UMI_attach/"
+script="$script_folder/UMI_barcode_extraction2.py"
+
+echo "Changing the name of the fastq files..."
+for sample in $(cat "$sample_ID"); do
+    echo "Changing name for $sample"
+    mv "$input_folder"/*"$sample"*_R1_001.fastq.gz "$input_folder/$sample.R1.fastq.gz"
+    mv "$input_folder"/*"$sample"*_R2_001.fastq.gz "$input_folder/$sample.R2.fastq.gz"
+    mv "$input_folder"/*"$sample"*_R3_001.fastq.gz "$input_folder/$sample.R3.fastq.gz"
+done
+
+echo "Extracting spatial barcode ..."
+mkdir -p "$output_folder"
+"$python_path/python" "$script" "$input_folder" "$sample_ID" "$output_folder" "$core" "$barcode_1_file" "$barcode_2_file" "$barcode_3_file" "$barcode_4_file"
+echo "Spatial barcode extraction completed."
+
+
+
+
+############ spatial barcode extraction
+# the script take an input folder, a sample ID list, an output folder, the RT barcode list, the ligation barcode list and core number. Then it extract the RT barcode from read1, the ligation barocde from read2, correct them to the nearest RT and ligation barcode (with edit distance <= 1), and attach the RT and ligation barcode and UMI sequence to the read name of read3. Reads with unmatched RT or ligation barcodes are discarded.
+
+input_folder=$all_output_folder/UMI_attach
+output_folder=$all_output_folder/Spatial_barcode_extraction/
+script=$script_folder/spatial_barcode_extraction30cycles.py
+
+echo "Extract spatial barcode ...."
+mkdir -p $output_folder
+$python_path/python $script $input_folder $sample_ID $output_folder $core $barcode_1_file $barcode_2_file $barcode_3_file $barcode_4_file2
+echo "Spatial barcode extracted."
+
+# Remove duplicate barcode based on UMI sequence
+# Remove duplicate barcode based on UMI sequence
+input_folder=$all_output_folder/Spatial_barcode_extraction/
+output_folder=$all_output_folder/Spatial_barcode_rmdup/
+script=$script_folder/Remove_duplicate_barcode.py
+echo "Remove duplicated spatial barcode ...."
+mkdir -p $output_folder
+$python_path/python $script $input_folder $sample_ID $output_folder $core
+echo "Duplicated barcode removed."
+
+
+# Count the number of lines in each step
+
+################### calculate the reads number
+fastq_folder=$fastq_folder
+UMI_attach=$all_output_folder/UMI_attach
+spatial_barcode=$all_output_folder/Spatial_barcode_extraction/
+deduplicate_spatial=$all_output_folder/Spatial_barcode_rmdup/
+#split_sam=$parental_folder/splited_sam
+report_folder=$all_output_folder/report/read_num_spatial_barcode
+echo
+echo "Start calculating the reads number..."
+#make the report folder
+mkdir -p $report_folder
+#calculate the read number and output the read number into the report folder
+echo sample,total_reads, Filtering_bead1_barcode, Filtering_bead2_barcode, Remove_duplicates>$report_folder/read_number.csv
+for sample in $(cat $sample_ID); do echo calculating $sample; echo $sample,$(expr $(zcat $fastq_folder/$sample*R2*.gz|wc -l) / 4),$(expr $(zcat $UMI_attach/$sample*R2*.gz|wc -l) / 5), $(expr $(zcat $spatial_barcode/$sample.spatial.txt.gz|wc -l)), $(expr $(zcat $deduplicate_spatial/$sample.spatial.csv.gz|wc -l))>>$report_folder/read_number.csv; done
+echo "Read number calculation is done."
