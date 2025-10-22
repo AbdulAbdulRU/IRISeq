@@ -1,0 +1,84 @@
+%%writefile /.../cDNA_Processing.py
+#! /rugpfs/fs0/cao_lab/scratch/aabdul/miniconda3/envs/py38/bin/python
+#SBATCH --partition=##
+#SBATCH --nodes=1
+#SBATCH --ntasks=3 #Annotate the number of cores
+#SBATCH --cpus-per-task=4
+#SBATCH --requeue
+#SBATCH --job-name="cDNA_processing" # annotate job name
+#SBATCH -o /.....out
+#SBATCH --mail-user=USER...
+#SBATCH --mail-type=ALL
+
+import sys
+import subprocess
+import os
+import gzip
+from multiprocessing import Pool
+
+# Define Easysci script folder
+EasySpatial_script_folder = '/..../EasySpatial/'
+sys.path.append(EasySpatial_script_folder)
+from Spatial_UMI_barcode_extraction import extract_spatial_barcode_files
+from Fastq_trim_multi_files import Fastq_trim_files
+from STAR import Fastq_star_alignment_multi_files
+from Sam_filter_multi_files import Sam_filter_files
+from Sam_rm_dup_barcode_UMI_multi_files import rm_dup_files
+from Sam_gene_counting_multi_files import scRNA_count_parallel
+from Summary_gene_count_multi_files import Gene_count_summary
+from Generate_adata import generate_adata_from_gene_count
+from File_functions import *
+from Count_reads import *
+
+# Define the input folder, output folder and core number
+fastq_folder = "/..../Raw_data/"
+sample_ID = ".../sampleID.txt"
+output_folder = "/..../"
+core = 24
+
+print("\n******* Fastq_folder:", fastq_folder)
+print("\n******* Sample ID:", sample_ID)
+print("\n******* Output folder:", output_folder)
+print("\n******* Core number:", core)
+
+# Define the location of common tools for sequencing processing
+star_path="/rugpfs/fs0/cao_lab/scratch/asziraki/anaconda3/envs/original_pipeline/bin/STAR"
+cutadapt_path = "/ru-auth/local/home/jcao/anaconda3_new/envs/cutadaptenv/bin/cutadapt"
+samtools_path = "/rugpfs/fs0/cao_lab/scratch/asziraki/anaconda3/envs/original_pipeline/bin/samtools"
+
+# define the index and gtf files for alignment and gene counting
+index="/ru-auth/local/home/jcao/store/Reference/Index/STAR_hg19_mm10_RNAseq"
+gtf_file="/ru-auth/local/home/jcao/store/Reference/GTF/rmchr.gencode.v19.chr_patch_hapl_scaff.annotation.gencode.vM12.chr_patch_hapl_scaff.annotation.gtf.gz"
+gtf_annotation_file = "/ru-auth/local/home/jcao/store/Reference/Gene_annotation/hg19_mm10_Gene_reference.pickle"
+
+# define the location of the beads barcode files
+list_barcode_1_file="/../Spatial_R2_barcode_1.pickle"
+list_barcode_2_file="/.../Spatial_R2_barcode_2.pickle"
+list_barcode_3_file="/..../Spatial_R2_barcode_3.pickle"
+list_barcode_4_file="/..../Spatial_R2_barcode_4_bead1.pickle"
+mismatch_distance=1
+
+# Define intermediate output folders
+Fastq_barcode_attached = output_folder + "Fastq_barcode_attached/"
+dir_make(Fastq_barcode_attached)
+
+Fastq_trimmed = output_folder + "Fastq_trimmed/"
+dir_make(Fastq_trimmed)
+
+Sam_STAR = output_folder + "Sam_STAR/"
+dir_make(Sam_STAR)
+
+Sam_filtered = output_folder + "Sam_filtered"
+dir_make(Sam_filtered)
+
+Sam_rmdup = output_folder + "Sam_rmdup"
+dir_make(Sam_rmdup)
+
+Bed_gene_count = output_folder + "Bed_gene_count"
+dir_make(Bed_gene_count)
+
+Summary_gene_count = output_folder + "Summary_gene_count"
+dir_make(Summary_gene_count)
+
+Adata_folder = output_folder + "Adata"
+dir_make(Adata_folder)
