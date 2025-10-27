@@ -1,7 +1,7 @@
 # IRISeq
 IRISeq—an optics-free, cost-effective platform that leverages spatial interaction mapping by indexed sequencing to profile tissues at adjustable sizes and resolutions (5–50 µm). 
 
-![Uploading image.png…]()
+<img width="2260" height="1288" alt="image" src="https://github.com/user-attachments/assets/3145b49e-f9f8-4f54-8035-3de4de4ecb78" />
 
 
 In this repository, we provide IRISeq pipeline for aligning cDNA reads, and also for beads beads interactions. Moreover, we provide two pipelines for tissue reconstructions. GPU based for fast and efficient reconstructions for high resolution and large areas arrays, and also CPU based for smaller ~50 um arrays. 
