@@ -9,4 +9,5 @@ In this repository, we provide IRISeq pipeline for aligning cDNA reads, and also
 We also provide detailed code analysis for the IRISeq manuscript 
 
 In Branch cDNA_Processing, Bead_interaction_pipeline and EasySpatial folder contain all related code to align reads for cDNAs from both tissue RNA and bead-beads interactions. 
-The scripts to run these pipeline are cDNA_processing_script and beads_interaction_processing_script both in Branch_cDNA_Processing
+The scripts to run these pipeline are cDNA_processing_script and beads_interaction_processing_script both in Branch_cDNA_Processing.
+Bead barcodes whitelist is also provided in folder "Bead_bc_white_list". 
